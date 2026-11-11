@@ -13,10 +13,12 @@ mount_if() {
 mount_if -t proc proc /proc
 mount_if -t sysfs sysfs /sys
 mount_if -t devtmpfs devtmpfs /dev
-mkdir -p /dev/pts /dev/shm /tmp /run /var/log /run/aios
+mkdir -p /dev/pts /dev/shm /tmp /run /var/log
 mount_if -t devpts devpts /dev/pts
 mount_if -t tmpfs -o mode=0755 tmpfs /run
 mount_if -t tmpfs -o mode=1777 tmpfs /tmp
+# /run is a fresh tmpfs, so this directory has to be created after the mount.
+mkdir -p /run/aios
 mount_if -o remount,rw /
 
 if [ -f /etc/hostname ]; then

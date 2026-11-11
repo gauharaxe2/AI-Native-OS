@@ -126,7 +126,7 @@ def marker_ok(data: bytes) -> bool:
         b"console shell ready" in data
         and b"model:" in data
         and b"not installed" in data
-        and b"ai-os-init" in data
+        and b"ai-os-init (booted)" in data
     )
 
 while time.time() < deadline:
