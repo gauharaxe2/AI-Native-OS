@@ -30,18 +30,19 @@ fi
 printf '%s\n' booted > /run/aios/init.state
 
 mkdir -p /var/lib/aios/backups /var/lib/aios/models
-i=0
-while [ ! -b /dev/vdb ]; do
-    i=$((i + 1))
-    if [ "$i" -gt 3 ]; then
-        break
+# The model disk is a second virtio volume. Its kernel name is not stable,
+# so mount the volume that actually contains a GGUF.
+for dev in /dev/vda /dev/vdb /dev/vdc; do
+    if [ ! -b "$dev" ]; then
+        continue
     fi
-    sleep 1
+    if mount -t ext4 "$dev" /var/lib/aios/models 2>/dev/null; then
+        if ls /var/lib/aios/models/*.gguf >/dev/null 2>&1; then
+            break
+        fi
+        umount /var/lib/aios/models 2>/dev/null || true
+    fi
 done
-if [ -b /dev/vdb ]; then
-    mount -t ext4 /dev/vdb /var/lib/aios/models || \
-        printf '%s\n' "ai-os-init: could not mount the model disk"
-fi
 
 if [ -x /usr/sbin/aios-auditd ]; then
     /usr/sbin/aios-auditd &

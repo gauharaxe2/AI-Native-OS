@@ -1,1 +1,1 @@
-rootwait root=/dev/vda rw console=ttyAMA0
+rootwait root=LABEL=ai-native-os rw console=ttyAMA0
