@@ -1,0 +1,7 @@
+config BR2_PACKAGE_AIOS_AUDITD
+	bool "aios-auditd"
+	help
+	  Permission and audit daemon. Listens on a Unix socket, appends a
+	  hash-chained JSON log, and applies /etc/aios/policy.conf.
+
+	  Source: services/aios-auditd/

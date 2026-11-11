@@ -9,15 +9,22 @@ required=(
     README.md
     CONTRIBUTING.md
     docs/architecture.md
+    docs/audit-and-permissions.md
     .gitignore
     services/README.md
     services/ai-os-init/ai-os-init
+    services/aios-auditd/aios-auditd.c
+    services/aios-auditd/sha256.c
+    services/aios-auditd/sha256.h
+    services/aios-auditd/policy.conf
     shell/README.md
     shell/aios
     shell/banner.txt
     shell/profile.d.sh
+    shell/smoke.sh
     scripts/build.sh
     scripts/run-qemu.sh
+    scripts/audit-selftest.sh
     br2-external/external.desc
     br2-external/external.mk
     br2-external/Config.in
@@ -32,6 +39,8 @@ required=(
     br2-external/package/ai-os-init/ai-os-init.mk
     br2-external/package/aios/Config.in
     br2-external/package/aios/aios.mk
+    br2-external/package/aios-auditd/Config.in
+    br2-external/package/aios-auditd/aios-auditd.mk
     .github/workflows/ci.yml
 )
 
@@ -58,6 +67,7 @@ for key in \
     'BR2_LINUX_KERNEL_IMAGE=y' \
     'BR2_PACKAGE_AI_OS_INIT=y' \
     'BR2_PACKAGE_AIOS=y' \
+    'BR2_PACKAGE_AIOS_AUDITD=y' \
     'BR2_TARGET_ROOTFS_EXT2_4=y'
 do
     if ! grep -q -F "$key" "$defconfig"; then
@@ -76,7 +86,7 @@ if ! grep -q 'TODO' README.md || ! grep -q -i 'license' README.md; then
     exit 1
 fi
 
-if grep -n '\[\[' services/ai-os-init/ai-os-init shell/aios shell/profile.d.sh; then
+if grep -n '\[\[' services/ai-os-init/ai-os-init shell/aios shell/profile.d.sh shell/smoke.sh; then
     printf 'check-tree: device shell scripts must stay POSIX\n' >&2
     exit 1
 fi
@@ -101,7 +111,8 @@ done < <(find scripts shell services br2-external -type f -print0)
 status_out=$(sh shell/aios status)
 printf '%s\n' "$status_out" | grep -q 'AI Native OS'
 printf '%s\n' "$status_out" | grep -q 'not installed'
-sh shell/aios version | grep -q '0.1.0-phase1'
+sh shell/aios version | grep -q '0.2.0-phase2'
+scripts/audit-selftest.sh
 if sh shell/aios definitely-not-a-command >/dev/null 2>&1; then
     printf 'check-tree: aios accepted an unknown command\n' >&2
     exit 1

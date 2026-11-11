@@ -19,6 +19,8 @@ define AIOS_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/share/aios/banner.txt
 	$(INSTALL) -D -m 0644 $(AIOS_REPO)/shell/profile.d.sh \
 		$(TARGET_DIR)/etc/profile.d/aios.sh
+	$(INSTALL) -D -m 0755 $(AIOS_REPO)/shell/smoke.sh \
+		$(TARGET_DIR)/usr/share/aios/smoke.sh
 endef
 
 $(eval $(generic-package))

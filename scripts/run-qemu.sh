@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Boot the phase-1 image on QEMU aarch64 virt.
 #   scripts/run-qemu.sh            interactive serial console
-#   scripts/run-qemu.sh --smoke    boot, run `aios status`, power off
+#   scripts/run-qemu.sh --smoke    boot, exercise audit, power off
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -11,7 +11,7 @@ SMP=${SMP:-1}
 QEMU=${QEMU:-qemu-system-aarch64}
 CMDLINE_FILE=${CMDLINE_FILE:-"$ROOT/br2-external/board/qemu-aarch64/cmdline.txt"}
 SMOKE_LOG=${SMOKE_LOG:-"$ROOT/output/boot.log"}
-SMOKE_TIMEOUT=${SMOKE_TIMEOUT:-120}
+SMOKE_TIMEOUT=${SMOKE_TIMEOUT:-180}
 SMOKE=0
 EXTRA=()
 
@@ -20,7 +20,8 @@ usage() {
 Usage: scripts/run-qemu.sh [--smoke] [-- qemu-args...]
 
 Boots output/images/Image with the ext4 rootfs on QEMU aarch64 virt.
---smoke runs `aios status`, then `poweroff -f`, and writes output/boot.log.
+--smoke runs /usr/share/aios/smoke.sh (allow, deny, approve, undo, verify)
+and writes output/boot.log.
 EOF
 }
 
@@ -117,17 +118,21 @@ proc = subprocess.Popen(
 os.close(slave)
 
 buf = b""
-sent_status = False
-sent_off = False
+sent_smoke = False
 deadline = time.time() + timeout
 
 def marker_ok(data: bytes) -> bool:
-    return (
-        b"console shell ready" in data
-        and b"model:" in data
-        and b"not installed" in data
-        and b"ai-os-init (booted)" in data
+    needed = (
+        b"console shell ready",
+        b"SMOKE_ALLOW_OK",
+        b"SMOKE_DENY_OK",
+        b"SMOKE_APPROVE_OK",
+        b"SMOKE_UNDO_OK",
+        b"SMOKE_VERIFY_OK",
+        b"SMOKE_OK",
+        b"audit      running",
     )
+    return all(item in data for item in needed)
 
 while time.time() < deadline:
     if proc.poll() is not None:
@@ -146,14 +151,11 @@ while time.time() < deadline:
     buf += chunk
     sys.stdout.buffer.write(chunk)
     sys.stdout.buffer.flush()
-    if not sent_status and b"console shell ready" in buf:
+    if not sent_smoke and b"console shell ready" in buf:
         time.sleep(0.6)
-        os.write(master, b"aios status\n")
-        sent_status = True
-    if sent_status and not sent_off and marker_ok(buf):
-        time.sleep(0.3)
-        os.write(master, b"poweroff -f\n")
-        sent_off = True
+        os.write(master, b"/usr/share/aios/smoke.sh\n")
+        sent_smoke = True
+    if sent_smoke and marker_ok(buf):
         deadline = min(deadline, time.time() + 20)
 
 # Drain whatever is left after the guest exits or the deadline hits.

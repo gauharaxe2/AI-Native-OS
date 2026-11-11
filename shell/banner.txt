@@ -1,7 +1,8 @@
 ========================================
   AI Native OS
-  phase 1 — minimal Linux userspace
+  phase 2 — permission and audit
   init:   ai-os-init
   status: aios status
+  audit:  aios audit list
   halt:   poweroff -f
 ========================================
