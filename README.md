@@ -6,7 +6,7 @@ There is no Android or AOSP userspace, and no GNOME or KDE. A neural processing 
 
 The owner of the project is Gauhar Nadeem.
 
-This tree is **phase 1**: a Buildroot external tree that builds a small aarch64 image, boots it on QEMU `virt`, and lands in our own init and a shell. The `aios` command prints system status. No model runtime is included.
+This tree is **phase 2**. Phase 1 boots a small aarch64 image into our own init and shell. Phase 2 adds `aios-auditd`: an append-only, hash-chained audit log and a permission policy. No model runtime is included.
 
 ## Vision
 
@@ -17,7 +17,7 @@ A person should be able to talk to the computer, or type, and have an agent do t
 - Every action the agent takes is visible, attributable, and reversible.
 - The shell is text and voice, not a desktop full of windows.
 
-Phase 1 does not do any of that yet. It makes a honest base: a kernel, an init we control, and a status command, so later services have somewhere real to live.
+Phase 2 records actions and can undo the demo file operations. Memory, the agent, the model scheduler, and voice are still later.
 
 ## Architecture
 
@@ -28,8 +28,8 @@ Layers, from the hardware up:
 | Hardware or VM | Ordinary PCs, QEMU, later Pi 5 and mainline phones. NPUs optional. | QEMU aarch64 `virt` |
 | Linux kernel | Process, memory, devices, and drivers. | Linux 6.18, Buildroot |
 | Base userspace | Our init and a small userland. | `ai-os-init`, BusyBox |
-| AI services | Memory, agent runtime, model scheduler, permission and audit. | Not built |
-| Shell | Text and voice interface. | `aios` status stub and a login shell |
+| AI services | Memory, agent runtime, model scheduler, permission and audit. | Audit and permissions. See [docs/audit-and-permissions.md](docs/audit-and-permissions.md). |
+| Shell | Text and voice interface. | `aios` status, audit, request, approve, deny, and undo. |
 
 The layered picture, including services that are only planned, is in [docs/architecture.md](docs/architecture.md).
 
@@ -37,8 +37,8 @@ The layered picture, including services that are only planned, is in [docs/archi
 
 ```
 br2-external/     Buildroot BR2_EXTERNAL tree (defconfig, packages, board files)
-services/         System services. Phase 1 ships ai-os-init only.
-shell/            Banner, login hint, and the aios CLI.
+services/         System services. ai-os-init and aios-auditd.
+shell/            Banner, login hint, aios CLI, and the in-guest smoke script.
 scripts/          build.sh, run-qemu.sh, and a tree check used by CI.
 docs/             Architecture and design notes.
 .github/          Sanity-check workflow. It does not build the image.
@@ -59,17 +59,20 @@ The serial console is the UI. After the banner, the shell is root with no passwo
 
 ```text
 aios status
+aios request file.create /tmp/note.txt
+aios audit list
+aios audit verify
 poweroff -f
 ```
 
-`scripts/run-qemu.sh --smoke` boots the image, runs `aios status`, powers off, and writes `output/boot.log`. It exits non-zero if the banner and status text never show up.
+`scripts/run-qemu.sh --smoke` boots the image and runs `/usr/share/aios/smoke.sh`. That script allows a low-risk create, denies `system.poweroff`, approves a high-risk delete, undoes it, and checks the hash chain. The serial log is `output/boot.log`.
 
 Images land in `output/images/` (`Image`, `rootfs.ext2`, and a `rootfs.ext4` symlink). The QEMU command is also written in `br2-external/board/qemu-aarch64/readme.txt`.
 
 ## Roadmap
 
-1. **Phase 1 (this tree).** Buildroot image, `ai-os-init`, `aios status`, QEMU aarch64 `virt`.
-2. **Permission and audit skeleton.** A log of actions with an identity, a reason, and a way to undo, before any agent can act.
+1. **Phase 1.** Buildroot image, `ai-os-init`, `aios status`, QEMU aarch64 `virt`.
+2. **Permission and audit (this tree).** `aios-auditd`, a hash-chained log, allow/ask/deny policy, and undo for the demo file actions. Details are in [docs/audit-and-permissions.md](docs/audit-and-permissions.md).
 3. **Model scheduler.** One local small model through llama.cpp. Cloud escalation only after consent, and recorded by the audit log.
 4. **Text shell, then voice.** A text-first shell on top of `aios`, then speech-to-text with whisper.cpp and a text-to-speech path.
 5. **Agent runtime.** An agent that can operate programs and the UI, with a confirmation step on anything that changes state.
@@ -78,7 +81,7 @@ Images land in `output/images/` (`Image`, `rootfs.ext2`, and a `rootfs.ext4` sym
 
 ## Development image
 
-Phase 1 gives you a root shell on the serial port and does not start a network. Do not ship this image as a daily driver. Later phases add the permission layer before they add capabilities.
+The image gives you a root shell on the serial port and does not start a network. The audit policy is a development policy: low-risk file creates are allowed, high-risk deletes wait for confirmation, and `system.poweroff` is denied. Do not ship this image as a daily driver.
 
 ## License
 

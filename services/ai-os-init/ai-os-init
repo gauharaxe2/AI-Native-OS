@@ -1,7 +1,7 @@
 #!/bin/sh
-# ai-os-init — phase-1 PID 1 for AI Native OS.
-# Mounts the virtual filesystems, prints the banner, and respawns a shell.
-# POSIX sh for BusyBox ash. This is not an AI service.
+# ai-os-init — PID 1 for AI Native OS.
+# Mounts the virtual filesystems, starts aios-auditd, prints the banner,
+# and respawns a shell. POSIX sh for BusyBox ash.
 
 PATH=/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
@@ -28,6 +28,20 @@ else
 fi
 
 printf '%s\n' booted > /run/aios/init.state
+
+mkdir -p /var/lib/aios/backups
+if [ -x /usr/sbin/aios-auditd ]; then
+    /usr/sbin/aios-auditd &
+    i=0
+    while [ ! -S /run/aios/audit.sock ]; do
+        i=$((i + 1))
+        if [ "$i" -gt 3 ]; then
+            printf '%s\n' "ai-os-init: aios-auditd did not open its socket"
+            break
+        fi
+        sleep 1
+    done
+fi
 
 if [ -r /usr/share/aios/banner.txt ]; then
     cat /usr/share/aios/banner.txt

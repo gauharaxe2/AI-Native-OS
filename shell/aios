@@ -1,8 +1,8 @@
 #!/bin/sh
-# aios — phase-1 status CLI for AI Native OS.
+# aios — status and audit CLI for AI Native OS.
 # POSIX sh for BusyBox ash. No model runtime.
 
-VERSION=0.1.0-phase1
+VERSION=0.2.0-phase2
 
 status() {
     hostname_value=$(hostname 2>/dev/null || printf '%s' unknown)
@@ -40,25 +40,47 @@ status() {
     printf '%s\n' "root:      ${root_value}"
     printf '%s\n' "init:      ai-os-init (${init_value})"
     printf '%s\n' "model:     none"
+    if command -v aios-audit >/dev/null 2>&1 && aios-audit status >/dev/null 2>&1; then
+        audit_value=running
+    else
+        audit_value="not running"
+    fi
+
     printf '%s\n' "services:"
     printf '%s\n' "  memory     not installed"
     printf '%s\n' "  agent      not installed"
     printf '%s\n' "  scheduler  not installed"
-    printf '%s\n' "  audit      not installed"
+    printf '%s\n' "  audit      ${audit_value}"
     printf '%s\n' "  voice      not installed"
+}
+
+need_audit() {
+    if ! command -v aios-audit >/dev/null 2>&1; then
+        printf '%s\n' "aios: aios-audit is not installed" >&2
+        exit 1
+    fi
 }
 
 usage() {
     cat <<'EOF'
-aios — AI Native OS status tool (phase 1 stub)
+aios — AI Native OS status and audit tool (phase 2)
 
 Usage:
-  aios            print system status
-  aios status     print system status
-  aios version    print the aios version
-  aios help       print this help
+  aios                         print system status
+  aios status                  print system status
+  aios version                 print the aios version
+  aios audit list              list the hash-chained audit log
+  aios audit show <id>         print one audit record
+  aios audit verify            check the hash chain
+  aios request <action> <target>
+                               ask the audit daemon to perform an action
+  aios approve <id>            allow a pending request
+  aios deny <id>               refuse a pending request
+  aios undo <id>               reverse a recorded action, when it has undo info
+  aios help                    print this help
 
-This command does not load a model and does not change the system.
+Requests are attributed to actor "agent". approve, deny, and undo use actor "user".
+This command does not load a model.
 EOF
 }
 
@@ -71,6 +93,45 @@ case "${1:-status}" in
         ;;
     help|-h|--help)
         usage
+        ;;
+    audit)
+        need_audit
+        shift
+        case "${1:-}" in
+            list)
+                aios-audit list
+                ;;
+            show)
+                if [ -z "${2:-}" ]; then
+                    usage >&2
+                    exit 2
+                fi
+                aios-audit show "$2"
+                ;;
+            verify)
+                aios-audit verify
+                ;;
+            *)
+                usage >&2
+                exit 2
+                ;;
+        esac
+        ;;
+    request)
+        need_audit
+        if [ -z "${2:-}" ] || [ -z "${3:-}" ]; then
+            usage >&2
+            exit 2
+        fi
+        aios-audit request "$2" "$3"
+        ;;
+    approve|deny|undo)
+        need_audit
+        if [ -z "${2:-}" ]; then
+            usage >&2
+            exit 2
+        fi
+        aios-audit "$1" "$2"
         ;;
     *)
         printf '%s\n' "aios: unknown command '$1'" >&2

@@ -2,5 +2,6 @@ menu "AI Native OS"
 
 source "$BR2_EXTERNAL_AIOS_PATH/package/ai-os-init/Config.in"
 source "$BR2_EXTERNAL_AIOS_PATH/package/aios/Config.in"
+source "$BR2_EXTERNAL_AIOS_PATH/package/aios-auditd/Config.in"
 
 endmenu

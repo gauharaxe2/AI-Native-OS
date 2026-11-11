@@ -61,7 +61,7 @@ The kernel is mainline Linux, built with Buildroot. Phase 1 targets QEMU `virt` 
 
 ### Permission and audit
 
-Every later AI action is supposed to pass through a permission and audit layer: who asked, what ran, what changed, and how to reverse it. The layer is visible to the user. Phase 1 does not implement it. Nothing in phase 1 performs an AI action, so there is nothing to audit yet. The layer should exist before the agent runtime does.
+Every later AI action is supposed to pass through a permission and audit layer: who asked, what ran, what changed, and how to reverse it. Phase 2 implements that layer as `aios-auditd`. The design, the log format, and the default policy are in [audit-and-permissions.md](audit-and-permissions.md). The agent runtime is still absent, so the only client is `aios request`, which simulates an agent asking.
 
 ### Model scheduler
 
@@ -107,7 +107,7 @@ Boot path:
 2. Linux mounts the ext4 image as `/` (`root=/dev/vda`, `console=ttyAMA0`).
 3. The kernel execs `/sbin/init`, which is `ai-os-init`.
 4. `ai-os-init` mounts proc, sysfs, devtmpfs, `/dev/pts`, `/run`, and `/tmp`, remounts `/` read-write, prints `shell/banner.txt`, and respawns `/bin/sh -l` on the console.
-5. `aios status` reads hostname, kernel, uptime, and `/run/aios/init.state`, then reports the planned services as not installed.
+5. `ai-os-init` starts `aios-auditd`, then a login shell. `aios status` reports the audit service as running. Memory, the agent, the scheduler, and voice are still not installed.
 
 The development image logs in as root with no password on the serial console. It does not bring up a network. Treat it as a lab image.
 
@@ -118,7 +118,8 @@ The development image logs in as root with no password on the serial console. It
 | Package | Installs |
 | --- | --- |
 | `ai-os-init` | `services/ai-os-init/ai-os-init` as `/sbin/ai-os-init` and `/sbin/init` |
-| `aios` | `shell/aios` as `/usr/bin/aios`, the banner, and `/etc/profile.d/aios.sh` |
+| `aios` | `shell/aios` as `/usr/bin/aios`, the banner, the profile snippet, and the smoke script |
+| `aios-auditd` | `services/aios-auditd/` as `/usr/sbin/aios-auditd` and `/etc/aios/policy.conf` |
 
 The defconfig `aios_qemu_aarch64_defconfig` selects the Arm GNU AArch64 toolchain (so the image build does not compile GCC), Linux 6.18.7 with the QEMU `virt` board config, BusyBox, an ext4 root filesystem, and `BR2_INIT_NONE` so our init is the only init.
 
