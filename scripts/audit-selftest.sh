@@ -81,7 +81,24 @@ pending_id=$(sed -n 's/^pending id=\([0-9][0-9]*\).*/\1/p' "$work/del2.out" | he
 wait "$child"
 test -f "$file2"
 
+local_out=$("$work/aios-audit" request model.local "What is AI Native OS?")
+printf '%s\n' "$local_out" | grep -q '^allowed '
+printf '%s\n' "$local_out" | grep -q 'permitted'
+"$work/aios-audit" request model.cloud "cloud-stub" > "$work/cloud.out" &
+cloud_child=$!
+for _ in $(seq 1 50); do
+    if grep -q '^pending id=' "$work/cloud.out"; then
+        break
+    fi
+    sleep 0.05
+done
+grep -q 'model.cloud' "$work/cloud.out"
+cloud_id=$(sed -n 's/^pending id=\([0-9][0-9]*\).*/\1/p' "$work/cloud.out" | head -n 1)
+"$work/aios-audit" deny "$cloud_id" | grep -q 'denied by user'
+wait "$cloud_child"
+
 "$work/aios-audit" list | grep -q 'file.create'
+"$work/aios-audit" list | grep -q 'model.local'
 "$work/aios-audit" show 1 | grep -q '^decision: allowed$'
 "$work/aios-audit" verify | grep -q '^verify ok records='
 

@@ -541,6 +541,13 @@ static int execute_action(unsigned id, const char *action, const char *target,
 		return -1;
 	}
 
+	/* Logged authorization only. aios-modeld performs local inference. */
+	if (strcmp(action, "model.local") == 0 || strcmp(action, "model.cloud") == 0) {
+		snprintf(result, result_len, "permitted");
+		snprintf(undo, undo_len, "irreversible");
+		return 0;
+	}
+
 	snprintf(result, result_len, "unknown action");
 	return -1;
 }
