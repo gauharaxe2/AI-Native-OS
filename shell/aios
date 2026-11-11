@@ -2,7 +2,7 @@
 # aios — status and audit CLI for AI Native OS.
 # POSIX sh for BusyBox ash. No model runtime.
 
-VERSION=0.2.0-phase2
+VERSION=0.3.0-phase3
 
 status() {
     hostname_value=$(hostname 2>/dev/null || printf '%s' unknown)
@@ -39,17 +39,36 @@ status() {
     printf '%s\n' "uptime:    ${uptime_value}"
     printf '%s\n' "root:      ${root_value}"
     printf '%s\n' "init:      ai-os-init (${init_value})"
-    printf '%s\n' "model:     none"
+    model_name=none
+    scheduler_value="not running"
+    if command -v aios-model >/dev/null 2>&1; then
+        model_out=$(aios-model status 2>/dev/null) || model_out=""
+        if [ -n "$model_out" ]; then
+            scheduler_value=running
+            model_name=$(printf '%s\n' "$model_out" | while read -r line; do
+                case "$line" in
+                    "model: "*)
+                        printf '%s\n' "${line#model: }"
+                        ;;
+                esac
+            done)
+            if [ -z "$model_name" ]; then
+                model_name=none
+            fi
+        fi
+    fi
+
     if command -v aios-audit >/dev/null 2>&1 && aios-audit status >/dev/null 2>&1; then
         audit_value=running
     else
         audit_value="not running"
     fi
 
+    printf '%s\n' "model:     ${model_name}"
     printf '%s\n' "services:"
     printf '%s\n' "  memory     not installed"
     printf '%s\n' "  agent      not installed"
-    printf '%s\n' "  scheduler  not installed"
+    printf '%s\n' "  scheduler  ${scheduler_value}"
     printf '%s\n' "  audit      ${audit_value}"
     printf '%s\n' "  voice      not installed"
 }
@@ -63,7 +82,7 @@ need_audit() {
 
 usage() {
     cat <<'EOF'
-aios — AI Native OS status and audit tool (phase 2)
+aios — AI Native OS status, audit, and local model tool (phase 3)
 
 Usage:
   aios                         print system status
@@ -77,10 +96,13 @@ Usage:
   aios approve <id>            allow a pending request
   aios deny <id>               refuse a pending request
   aios undo <id>               reverse a recorded action, when it has undo info
+  aios model status            show whether the local model is loaded
+  aios ask "<prompt>"          run a local prompt (logged as model.local)
   aios help                    print this help
 
 Requests are attributed to actor "agent". approve, deny, and undo use actor "user".
-This command does not load a model.
+aios ask is attributed to actor "user" and is allowed by the low-risk model.local policy.
+model.cloud is ask-only and has no cloud backend.
 EOF
 }
 
@@ -132,6 +154,29 @@ case "${1:-status}" in
             exit 2
         fi
         aios-audit "$1" "$2"
+        ;;
+    model)
+        if [ "${2:-}" != status ]; then
+            usage >&2
+            exit 2
+        fi
+        if ! command -v aios-model >/dev/null 2>&1; then
+            printf '%s\n' "aios: aios-model is not installed" >&2
+            exit 1
+        fi
+        aios-model status
+        ;;
+    ask)
+        shift
+        if [ -z "${1:-}" ]; then
+            usage >&2
+            exit 2
+        fi
+        if ! command -v aios-model >/dev/null 2>&1; then
+            printf '%s\n' "aios: aios-model is not installed" >&2
+            exit 1
+        fi
+        aios-model ask "$1"
         ;;
     *)
         printf '%s\n' "aios: unknown command '$1'" >&2

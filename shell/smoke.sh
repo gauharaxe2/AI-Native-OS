@@ -73,6 +73,52 @@ test -f "$demo" || fail "undo did not restore the file"
 grep 'created by aios-auditd' "$demo" >/dev/null || fail "restored contents mismatch"
 printf '%s\n' "SMOKE_UNDO_OK"
 
+printf '%s\n' "--- model status ---"
+i=0
+while true; do
+    aios model status > /tmp/smoke-model.out || true
+    cat /tmp/smoke-model.out
+    if grep 'state: ready' /tmp/smoke-model.out >/dev/null; then
+        break
+    fi
+    if grep 'state: failed' /tmp/smoke-model.out >/dev/null; then
+        fail "model failed to load"
+    fi
+    if grep 'state: missing' /tmp/smoke-model.out >/dev/null; then
+        fail "model disk is missing"
+    fi
+    i=$((i + 1))
+    if [ "$i" -gt 240 ]; then
+        fail "model was not ready"
+    fi
+    sleep 1
+done
+printf '%s\n' "SMOKE_MODEL_OK"
+
+printf '%s\n' "--- local ask ---"
+ask_start=$(date +%s)
+aios ask "What is AI Native OS?" > /tmp/smoke-ask.out || fail "local ask failed"
+ask_end=$(date +%s)
+cat /tmp/smoke-ask.out
+if [ ! -s /tmp/smoke-ask.out ]; then
+    fail "model answer was empty"
+fi
+printf '%s\n' "SMOKE_ASK_SECONDS=$((ask_end - ask_start))"
+printf '%s\n' "SMOKE_ASK_OK"
+
+printf '%s\n' "--- model.cloud pending ---"
+aios request model.cloud demo > /tmp/smoke-cloud.out &
+i=0
+while ! grep '^pending id=' /tmp/smoke-cloud.out >/dev/null 2>&1; do
+    i=$((i + 1))
+    if [ "$i" -gt 10 ]; then
+        fail "model.cloud did not become pending"
+    fi
+    sleep 1
+done
+cat /tmp/smoke-cloud.out
+printf '%s\n' "SMOKE_CLOUD_OK"
+
 printf '%s\n' "--- audit list ---"
 aios audit list || fail "audit list failed"
 printf '%s\n' "--- audit verify ---"

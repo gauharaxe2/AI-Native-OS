@@ -1,0 +1,7 @@
+config BR2_PACKAGE_AIOS_MODELD
+	bool "aios-modeld"
+	help
+	  Local model scheduler. Starts llama-server and exposes a Unix
+	  socket. Every local prompt is logged as model.local.
+
+	  Source: services/aios-modeld/aios-modeld.c

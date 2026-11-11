@@ -6,12 +6,12 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 IMAGES=${IMAGES:-"$ROOT/output/images"}
-MEMORY=${MEMORY:-512}
-SMP=${SMP:-1}
+MEMORY=${MEMORY:-}
+SMP=${SMP:-}
 QEMU=${QEMU:-qemu-system-aarch64}
 CMDLINE_FILE=${CMDLINE_FILE:-"$ROOT/br2-external/board/qemu-aarch64/cmdline.txt"}
 SMOKE_LOG=${SMOKE_LOG:-"$ROOT/output/boot.log"}
-SMOKE_TIMEOUT=${SMOKE_TIMEOUT:-180}
+SMOKE_TIMEOUT=${SMOKE_TIMEOUT:-900}
 SMOKE=0
 EXTRA=()
 
@@ -74,6 +74,21 @@ if [[ ! -f "$CMDLINE_FILE" ]]; then
     exit 1
 fi
 
+if [[ "$SMOKE" -eq 1 ]]; then
+    MEMORY=${MEMORY:-3072}
+    SMP=${SMP:-2}
+else
+    MEMORY=${MEMORY:-512}
+    SMP=${SMP:-1}
+fi
+
+MODEL_IMG=${MODEL_IMG:-"$ROOT/models/model.img"}
+if [[ "$SMOKE" -eq 1 && ! -f "$MODEL_IMG" ]]; then
+    printf 'run-qemu.sh: model disk missing: %s\n' "$MODEL_IMG" >&2
+    printf 'run-qemu.sh: run scripts/fetch-model.sh first\n' >&2
+    exit 1
+fi
+
 APPEND=$(tr '\n' ' ' < "$CMDLINE_FILE" | sed 's/[[:space:]]*$//')
 
 QEMU_ARGS=(
@@ -87,6 +102,12 @@ QEMU_ARGS=(
     -drive "file=${ROOTFS},if=none,format=raw,id=hd0"
     -device virtio-blk-device,drive=hd0
 )
+if [[ -f "$MODEL_IMG" ]]; then
+    QEMU_ARGS+=(
+        -drive "file=${MODEL_IMG},if=none,format=raw,id=hd1"
+        -device virtio-blk-device,drive=hd1
+    )
+fi
 
 if [[ "$SMOKE" -eq 0 ]]; then
     exec "$QEMU" "${QEMU_ARGS[@]}" "${EXTRA[@]}"
@@ -130,7 +151,11 @@ def marker_ok(data: bytes) -> bool:
         b"SMOKE_UNDO_OK",
         b"SMOKE_VERIFY_OK",
         b"SMOKE_OK",
+        b"SMOKE_MODEL_OK",
+        b"SMOKE_ASK_OK",
+        b"SMOKE_CLOUD_OK",
         b"audit      running",
+        b"scheduler  running",
     )
     return all(item in data for item in needed)
 

@@ -29,7 +29,20 @@ fi
 
 printf '%s\n' booted > /run/aios/init.state
 
-mkdir -p /var/lib/aios/backups
+mkdir -p /var/lib/aios/backups /var/lib/aios/models
+i=0
+while [ ! -b /dev/vdb ]; do
+    i=$((i + 1))
+    if [ "$i" -gt 3 ]; then
+        break
+    fi
+    sleep 1
+done
+if [ -b /dev/vdb ]; then
+    mount -t ext4 /dev/vdb /var/lib/aios/models || \
+        printf '%s\n' "ai-os-init: could not mount the model disk"
+fi
+
 if [ -x /usr/sbin/aios-auditd ]; then
     /usr/sbin/aios-auditd &
     i=0
@@ -41,6 +54,10 @@ if [ -x /usr/sbin/aios-auditd ]; then
         fi
         sleep 1
     done
+fi
+
+if [ -x /usr/sbin/aios-modeld ]; then
+    /usr/sbin/aios-modeld &
 fi
 
 if [ -r /usr/share/aios/banner.txt ]; then

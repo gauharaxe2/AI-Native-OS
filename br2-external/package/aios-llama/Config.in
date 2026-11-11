@@ -1,0 +1,10 @@
+config BR2_PACKAGE_AIOS_LLAMA
+	bool "aios-llama"
+	depends on BR2_INSTALL_LIBSTDCPP
+	depends on BR2_TOOLCHAIN_GCC_AT_LEAST_11
+	help
+	  CPU-only llama.cpp for AI Native OS. Installs llama-cli and
+	  llama-server. Weights are not included.
+
+comment "aios-llama needs a toolchain w/ C++, gcc >= 11"
+	depends on !BR2_INSTALL_LIBSTDCPP || !BR2_TOOLCHAIN_GCC_AT_LEAST_11

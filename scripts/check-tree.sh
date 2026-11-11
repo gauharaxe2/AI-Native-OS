@@ -10,6 +10,7 @@ required=(
     CONTRIBUTING.md
     docs/architecture.md
     docs/audit-and-permissions.md
+    docs/model-scheduler.md
     .gitignore
     services/README.md
     services/ai-os-init/ai-os-init
@@ -17,6 +18,7 @@ required=(
     services/aios-auditd/sha256.c
     services/aios-auditd/sha256.h
     services/aios-auditd/policy.conf
+    services/aios-modeld/aios-modeld.c
     shell/README.md
     shell/aios
     shell/banner.txt
@@ -25,6 +27,7 @@ required=(
     scripts/build.sh
     scripts/run-qemu.sh
     scripts/audit-selftest.sh
+    scripts/fetch-model.sh
     br2-external/external.desc
     br2-external/external.mk
     br2-external/Config.in
@@ -41,6 +44,10 @@ required=(
     br2-external/package/aios/aios.mk
     br2-external/package/aios-auditd/Config.in
     br2-external/package/aios-auditd/aios-auditd.mk
+    br2-external/package/aios-llama/aios-llama.mk
+    br2-external/package/aios-llama/aios-llama.hash
+    br2-external/package/aios-llama/0001-only-cli-and-server.patch
+    br2-external/package/aios-modeld/aios-modeld.mk
     .github/workflows/ci.yml
 )
 
@@ -68,6 +75,8 @@ for key in \
     'BR2_PACKAGE_AI_OS_INIT=y' \
     'BR2_PACKAGE_AIOS=y' \
     'BR2_PACKAGE_AIOS_AUDITD=y' \
+    'BR2_PACKAGE_AIOS_LLAMA=y' \
+    'BR2_PACKAGE_AIOS_MODELD=y' \
     'BR2_TARGET_ROOTFS_EXT2_4=y'
 do
     if ! grep -q -F "$key" "$defconfig"; then
@@ -111,7 +120,7 @@ done < <(find scripts shell services br2-external -type f -print0)
 status_out=$(sh shell/aios status)
 printf '%s\n' "$status_out" | grep -q 'AI Native OS'
 printf '%s\n' "$status_out" | grep -q 'not installed'
-sh shell/aios version | grep -q '0.2.0-phase2'
+sh shell/aios version | grep -q '0.3.0-phase3'
 scripts/audit-selftest.sh
 if sh shell/aios definitely-not-a-command >/dev/null 2>&1; then
     printf 'check-tree: aios accepted an unknown command\n' >&2

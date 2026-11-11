@@ -6,7 +6,7 @@ There is no Android or AOSP userspace, and no GNOME or KDE. A neural processing 
 
 The owner of the project is Gauhar Nadeem.
 
-This tree is **phase 2**. Phase 1 boots a small aarch64 image into our own init and shell. Phase 2 adds `aios-auditd`: an append-only, hash-chained audit log and a permission policy. No model runtime is included.
+This tree is **phase 3**. It boots a small aarch64 image, records actions in `aios-auditd`, and runs a local model through `aios-modeld`. Cloud inference is an audit stub only.
 
 ## Vision
 
@@ -17,7 +17,7 @@ A person should be able to talk to the computer, or type, and have an agent do t
 - Every action the agent takes is visible, attributable, and reversible.
 - The shell is text and voice, not a desktop full of windows.
 
-Phase 2 records actions and can undo the demo file operations. Memory, the agent, the model scheduler, and voice are still later.
+Phase 2 records actions and can undo the demo file operations. Phase 3 runs a small local model and logs that call. Memory, the agent, and voice are still later.
 
 ## Architecture
 
@@ -28,7 +28,7 @@ Layers, from the hardware up:
 | Hardware or VM | Ordinary PCs, QEMU, later Pi 5 and mainline phones. NPUs optional. | QEMU aarch64 `virt` |
 | Linux kernel | Process, memory, devices, and drivers. | Linux 6.18, Buildroot |
 | Base userspace | Our init and a small userland. | `ai-os-init`, BusyBox |
-| AI services | Memory, agent runtime, model scheduler, permission and audit. | Audit and permissions. See [docs/audit-and-permissions.md](docs/audit-and-permissions.md). |
+| AI services | Memory, agent runtime, model scheduler, permission and audit. | Audit plus a local scheduler. See [docs/audit-and-permissions.md](docs/audit-and-permissions.md) and [docs/model-scheduler.md](docs/model-scheduler.md). |
 | Shell | Text and voice interface. | `aios` status, audit, request, approve, deny, and undo. |
 
 The layered picture, including services that are only planned, is in [docs/architecture.md](docs/architecture.md).
@@ -58,22 +58,30 @@ scripts/run-qemu.sh
 The serial console is the UI. After the banner, the shell is root with no password. That is a development image, not a locked-down system.
 
 ```text
+scripts/fetch-model.sh
+scripts/build.sh
+scripts/run-qemu.sh --smoke
+```
+
+Inside the guest:
+
+```text
 aios status
-aios request file.create /tmp/note.txt
-aios audit list
+aios model status
+aios ask "What is AI Native OS?"
 aios audit verify
 poweroff -f
 ```
 
-`scripts/run-qemu.sh --smoke` boots the image and runs `/usr/share/aios/smoke.sh`. That script allows a low-risk create, denies `system.poweroff`, approves a high-risk delete, undoes it, and checks the hash chain. The serial log is `output/boot.log`.
+`scripts/run-qemu.sh --smoke` boots the image with 3 GB of RAM and runs `/usr/share/aios/smoke.sh`. That script checks the audit file actions, waits for the local model, asks it one short question, leaves a `model.cloud` request pending, and checks the hash chain. The serial log is `output/boot.log`. Run `scripts/fetch-model.sh` before the smoke test so `models/model.img` exists.
 
 Images land in `output/images/` (`Image`, `rootfs.ext2`, and a `rootfs.ext4` symlink). The QEMU command is also written in `br2-external/board/qemu-aarch64/readme.txt`.
 
 ## Roadmap
 
 1. **Phase 1.** Buildroot image, `ai-os-init`, `aios status`, QEMU aarch64 `virt`.
-2. **Permission and audit (this tree).** `aios-auditd`, a hash-chained log, allow/ask/deny policy, and undo for the demo file actions. Details are in [docs/audit-and-permissions.md](docs/audit-and-permissions.md).
-3. **Model scheduler.** One local small model through llama.cpp. Cloud escalation only after consent, and recorded by the audit log.
+2. **Permission and audit.** `aios-auditd`, a hash-chained log, allow/ask/deny policy, and undo for the demo file actions. Details are in [docs/audit-and-permissions.md](docs/audit-and-permissions.md).
+3. **Model scheduler (this tree).** llama.cpp on CPU, `aios ask` for a local SmolLM2 model, and `model.cloud` as an ask-only audit stub. See [docs/model-scheduler.md](docs/model-scheduler.md).
 4. **Text shell, then voice.** A text-first shell on top of `aios`, then speech-to-text with whisper.cpp and a text-to-speech path.
 5. **Agent runtime.** An agent that can operate programs and the UI, with a confirmation step on anything that changes state.
 6. **On-device memory.** A personal memory and context service, permissioned, local by default.

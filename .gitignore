@@ -4,6 +4,10 @@
 # Out-of-tree Buildroot output (O=output)
 /output/
 
+# Downloaded weights and the second QEMU disk. Not part of the git tree.
+/models/
+*.gguf
+
 # Editor and OS noise
 *~
 .DS_Store
