@@ -1,0 +1,80 @@
+#!/bin/sh
+# aios — phase-1 status CLI for AI Native OS.
+# POSIX sh for BusyBox ash. No model runtime.
+
+VERSION=0.1.0-phase1
+
+status() {
+    hostname_value=$(hostname 2>/dev/null || printf '%s' unknown)
+    kernel_value=$(uname -sr 2>/dev/null || printf '%s' unknown)
+    arch_value=$(uname -m 2>/dev/null || printf '%s' unknown)
+
+    if [ -r /proc/uptime ]; then
+        read -r uptime_seconds _ < /proc/uptime
+        uptime_value="${uptime_seconds}s"
+    else
+        uptime_value=unknown
+    fi
+
+    if [ -r /run/aios/init.state ]; then
+        init_value=$(cat /run/aios/init.state)
+    else
+        init_value=unknown
+    fi
+
+    root_value=unknown
+    if [ -r /proc/mounts ]; then
+        while read -r dev mnt type _; do
+            if [ "$mnt" = / ]; then
+                root_value="$dev $type"
+                break
+            fi
+        done < /proc/mounts
+    fi
+
+    printf '%s\n' "AI Native OS ${VERSION}"
+    printf '%s\n' "hostname:  ${hostname_value}"
+    printf '%s\n' "kernel:    ${kernel_value}"
+    printf '%s\n' "arch:      ${arch_value}"
+    printf '%s\n' "uptime:    ${uptime_value}"
+    printf '%s\n' "root:      ${root_value}"
+    printf '%s\n' "init:      ai-os-init (${init_value})"
+    printf '%s\n' "model:     none"
+    printf '%s\n' "services:"
+    printf '%s\n' "  memory     not installed"
+    printf '%s\n' "  agent      not installed"
+    printf '%s\n' "  scheduler  not installed"
+    printf '%s\n' "  audit      not installed"
+    printf '%s\n' "  voice      not installed"
+}
+
+usage() {
+    cat <<'EOF'
+aios — AI Native OS status tool (phase 1 stub)
+
+Usage:
+  aios            print system status
+  aios status     print system status
+  aios version    print the aios version
+  aios help       print this help
+
+This command does not load a model and does not change the system.
+EOF
+}
+
+case "${1:-status}" in
+    status)
+        status
+        ;;
+    version|--version|-V)
+        printf '%s\n' "aios ${VERSION}"
+        ;;
+    help|-h|--help)
+        usage
+        ;;
+    *)
+        printf '%s\n' "aios: unknown command '$1'" >&2
+        printf '%s\n' "Try 'aios help'." >&2
+        exit 1
+        ;;
+esac

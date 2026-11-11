@@ -1,0 +1,49 @@
+#!/bin/sh
+# ai-os-init — phase-1 PID 1 for AI Native OS.
+# Mounts the virtual filesystems, prints the banner, and respawns a shell.
+# POSIX sh for BusyBox ash. This is not an AI service.
+
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+mount_if() {
+    mount "$@" 2>/dev/null || true
+}
+
+mount_if -t proc proc /proc
+mount_if -t sysfs sysfs /sys
+mount_if -t devtmpfs devtmpfs /dev
+mkdir -p /dev/pts /dev/shm /tmp /run /var/log
+mount_if -t devpts devpts /dev/pts
+mount_if -t tmpfs -o mode=0755 tmpfs /run
+mount_if -t tmpfs -o mode=1777 tmpfs /tmp
+# /run is a fresh tmpfs, so this directory has to be created after the mount.
+mkdir -p /run/aios
+mount_if -o remount,rw /
+
+if [ -f /etc/hostname ]; then
+    hostname -F /etc/hostname 2>/dev/null || hostname "$(cat /etc/hostname)"
+else
+    hostname ai-native-os
+fi
+
+printf '%s\n' booted > /run/aios/init.state
+
+if [ -r /usr/share/aios/banner.txt ]; then
+    cat /usr/share/aios/banner.txt
+else
+    printf '%s\n' "AI Native OS — ai-os-init"
+fi
+
+printf '%s\n' "ai-os-init: console shell ready."
+
+while true; do
+    if command -v setsid >/dev/null 2>&1 && command -v cttyhack >/dev/null 2>&1; then
+        setsid cttyhack /bin/sh -l
+    else
+        setsid /bin/sh -l </dev/console >/dev/console 2>&1
+    fi
+    status=$?
+    printf '%s\n' "ai-os-init: shell exited (${status}), respawning in 1s."
+    sleep 1
+done

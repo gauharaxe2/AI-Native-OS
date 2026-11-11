@@ -1,0 +1,7 @@
+config BR2_PACKAGE_AIOS
+	bool "aios"
+	help
+	  Phase-1 status CLI. Installed as /usr/bin/aios, with the
+	  welcome banner and /etc/profile.d/aios.sh.
+
+	  Source: shell/aios
