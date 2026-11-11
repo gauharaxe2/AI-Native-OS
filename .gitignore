@@ -1,0 +1,12 @@
+# Pinned Buildroot tree and download cache, fetched by scripts/build.sh
+.buildroot/
+
+# Out-of-tree Buildroot output (O=output)
+/output/
+
+# Editor and OS noise
+*~
+.DS_Store
+
+# Netlify local state, if a site is added later
+.netlify

@@ -1,0 +1,13 @@
+name: sanity
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check-tree:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check layout and shell syntax
+        run: scripts/check-tree.sh

@@ -1,0 +1,7 @@
+========================================
+  AI Native OS
+  phase 1 — minimal Linux userspace
+  init:   ai-os-init
+  status: aios status
+  halt:   poweroff -f
+========================================

@@ -1,0 +1,7 @@
+config BR2_PACKAGE_AI_OS_INIT
+	bool "ai-os-init"
+	help
+	  Phase-1 init for AI Native OS. Installed as /sbin/ai-os-init
+	  and /sbin/init. Mounts early filesystems and starts a shell.
+
+	  Source: services/ai-os-init/ai-os-init
